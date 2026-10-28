@@ -1,0 +1,614 @@
+openapi: 3.0.3
+info:
+  title: Transaction Ledger API
+  version: 1.0.0
+  description: >
+    REST API for a simple transaction ledger: accounts, credit and debit
+    transactions, balances, paginated history and atomic transfers.
+servers:
+  - url: http://localhost:4000/api
+    description: Local development
+
+# The API has no authentication.
+security: []
+
+tags:
+  - name: Accounts
+    description: Create accounts and read balances.
+  - name: Transactions
+    description: Post credits and debits, and read transaction history.
+  - name: Transfers
+    description: Move money between two accounts atomically.
+  - name: System
+    description: Service health.
+
+paths:
+  /accounts:
+    post:
+      tags: [Accounts]
+      operationId: createAccount
+      summary: Create account
+      description: >
+        Creates an account with a balance of 0. The id, balance and created_at
+        are set by the system. Sending `balance` or any other unknown field is
+        rejected with a validation error.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAccountRequest'
+            example:
+              name: Alice
+      responses:
+        '201':
+          description: Account created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Account'
+              example:
+                data:
+                  id: 6f1c2a9e-4b7d-4c1e-9a3f-2d8e5b6c7a10
+                  name: Alice
+                  balance: 0
+                  created_at: '2026-10-28T10:15:30.000Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+
+  /accounts/{accountId}/balance:
+    get:
+      tags: [Accounts]
+      operationId: getBalance
+      summary: Get account balance
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      responses:
+        '200':
+          description: Current balance.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Balance'
+              example:
+                data:
+                  account_id: 6f1c2a9e-4b7d-4c1e-9a3f-2d8e5b6c7a10
+                  balance: 100
+        '400':
+          $ref: '#/components/responses/InvalidAccountId'
+        '404':
+          $ref: '#/components/responses/AccountNotFound'
+
+  /accounts/{accountId}/transactions:
+    post:
+      tags: [Transactions]
+      operationId: createTransaction
+      summary: Add transaction
+      description: >
+        Records a credit or debit and updates the balance in a single atomic
+        operation. A debit is rejected if the balance is too low. A
+        `reference_id` already used on this account returns `409` and changes
+        nothing, so retrying a request is safe.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTransactionRequest'
+            examples:
+              credit:
+                summary: Credit
+                value:
+                  type: credit
+                  amount: 50
+                  description: Salary
+                  reference_id: TXN-1001
+              debit:
+                summary: Debit
+                value:
+                  type: debit
+                  amount: 30
+                  description: Groceries
+                  reference_id: TXN-1002
+      responses:
+        '201':
+          description: Transaction created and balance updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [transaction, balance]
+                    properties:
+                      transaction:
+                        $ref: '#/components/schemas/Transaction'
+                      balance:
+                        type: number
+                        description: Account balance after this transaction.
+              example:
+                data:
+                  transaction:
+                    id: a3b1c9d2-7e4f-4a6b-8c5d-1e2f3a4b5c6d
+                    account_id: 6f1c2a9e-4b7d-4c1e-9a3f-2d8e5b6c7a10
+                    type: credit
+                    amount: 50
+                    description: Salary
+                    reference_id: TXN-1001
+                    created_at: '2026-10-28T10:20:00.000Z'
+                  balance: 150
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/AccountNotFound'
+        '409':
+          $ref: '#/components/responses/DuplicateTransaction'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/InsufficientBalance'
+
+    get:
+      tags: [Transactions]
+      operationId: listTransactions
+      summary: Get transaction history
+      description: >
+        Returns the account's transactions newest first (by `created_at`),
+        optionally filtered by type. A page past the end returns an empty
+        `data` array.
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - name: type
+          in: query
+          required: false
+          description: Only return this type. Leave it out to get both.
+          schema:
+            type: string
+            enum: [credit, debit]
+        - name: page
+          in: query
+          required: false
+          description: Page number, starting at 1.
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          description: Page size.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        '200':
+          description: One page of transactions.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Transaction'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+              example:
+                data:
+                  - id: c7d8e9f0-1a2b-4c3d-8e4f-5a6b7c8d9e0f
+                    account_id: 6f1c2a9e-4b7d-4c1e-9a3f-2d8e5b6c7a10
+                    type: debit
+                    amount: 20
+                    description: Groceries
+                    reference_id: TXN-1004
+                    created_at: '2026-10-28T11:00:00.000Z'
+                pagination:
+                  page: 1
+                  limit: 10
+                  total_records: 1
+                  total_pages: 1
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/AccountNotFound'
+
+  /transfers:
+    post:
+      tags: [Transfers]
+      operationId: createTransfer
+      summary: Transfer money
+      description: >
+        Debits the source account and credits the destination in a single
+        database transaction. Both legs share the `reference_id`. If anything
+        fails (missing account, insufficient balance, duplicate reference on
+        either account), the whole transfer is rolled back.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferRequest'
+            example:
+              from_account_id: 6f1c2a9e-4b7d-4c1e-9a3f-2d8e5b6c7a10
+              to_account_id: 9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d
+              amount: 30
+              reference_id: TRF-2001
+              description: Rent share
+      responses:
+        '201':
+          description: Transfer completed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TransferResult'
+              example:
+                data:
+                  debit:
+                    id: 1d2e3f4a-5b6c-4d7e-8f9a-0b1c2d3e4f5a
+                    account_id: 6f1c2a9e-4b7d-4c1e-9a3f-2d8e5b6c7a10
+                    type: debit
+                    amount: 30
+                    description: Rent share
+                    reference_id: TRF-2001
+                    created_at: '2026-10-28T12:00:00.000Z'
+                  credit:
+                    id: 2e3f4a5b-6c7d-4e8f-9a0b-1c2d3e4f5a6b
+                    account_id: 9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d
+                    type: credit
+                    amount: 30
+                    description: Rent share
+                    reference_id: TRF-2001
+                    created_at: '2026-10-28T12:00:00.000Z'
+                  balances:
+                    from_account: 70
+                    to_account: 80
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/AccountNotFound'
+        '409':
+          $ref: '#/components/responses/DuplicateTransaction'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/InsufficientBalance'
+
+  /health:
+    get:
+      tags: [System]
+      operationId: getHealth
+      summary: Health check
+      description: Returns ok when the API is running and can reach the database.
+      responses:
+        '200':
+          description: Service is healthy.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                        example: ok
+
+components:
+  parameters:
+    AccountId:
+      name: accountId
+      in: path
+      required: true
+      description: The account's UUID.
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    Account:
+      type: object
+      required: [id, name, balance, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Generated by the system.
+        name:
+          type: string
+        balance:
+          type: number
+          description: Always 0 for a new account.
+        created_at:
+          type: string
+          format: date-time
+
+    Balance:
+      type: object
+      required: [account_id, balance]
+      properties:
+        account_id:
+          type: string
+          format: uuid
+        balance:
+          type: number
+
+    Transaction:
+      type: object
+      required: [id, account_id, type, amount, description, reference_id, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        account_id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [credit, debit]
+        amount:
+          type: number
+        description:
+          type: string
+          nullable: true
+        reference_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    Pagination:
+      type: object
+      required: [page, limit, total_records, total_pages]
+      properties:
+        page:
+          type: integer
+          description: Current page.
+        limit:
+          type: integer
+          description: Page size.
+        total_records:
+          type: integer
+          description: Matching transactions across all pages.
+        total_pages:
+          type: integer
+          description: 0 when there are no records.
+
+    CreateAccountRequest:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Account holder name. Leading and trailing spaces are trimmed.
+
+    CreateTransactionRequest:
+      type: object
+      additionalProperties: false
+      required: [type, amount, reference_id]
+      properties:
+        type:
+          type: string
+          enum: [credit, debit]
+        amount:
+          $ref: '#/components/schemas/Amount'
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+        reference_id:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Unique per account. Reusing it on the same account returns 409.
+
+    TransferRequest:
+      type: object
+      additionalProperties: false
+      required: [from_account_id, to_account_id, amount, reference_id]
+      properties:
+        from_account_id:
+          type: string
+          format: uuid
+        to_account_id:
+          type: string
+          format: uuid
+          description: Must be different from from_account_id.
+        amount:
+          $ref: '#/components/schemas/Amount'
+        reference_id:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Used for both the debit and the credit leg.
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: >
+            Used for both legs. Defaults to "Transfer to <id>" and
+            "Transfer from <id>".
+
+    TransferResult:
+      type: object
+      required: [debit, credit, balances]
+      properties:
+        debit:
+          $ref: '#/components/schemas/Transaction'
+        credit:
+          $ref: '#/components/schemas/Transaction'
+        balances:
+          type: object
+          required: [from_account, to_account]
+          properties:
+            from_account:
+              type: number
+            to_account:
+              type: number
+
+    Amount:
+      type: number
+      minimum: 0.01
+      maximum: 1000000000
+      multipleOf: 0.01
+      description: Greater than 0, at most 1,000,000,000, at most 2 decimal places.
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: Stable, machine-readable error code.
+            message:
+              type: string
+              description: Human-readable explanation.
+            details:
+              description: Extra context. Shape depends on the error code.
+              oneOf:
+                - type: array
+                  items:
+                    type: object
+                    properties:
+                      field:
+                        type: string
+                      message:
+                        type: string
+                - type: object
+
+  responses:
+    BadRequest:
+      description: >
+        Invalid input. `VALIDATION_ERROR` lists every problem in `details`;
+        `INVALID_JSON` means the body couldn't be parsed; `INVALID_ACCOUNT_ID`
+        means the path ID is not a UUID.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            validation:
+              summary: VALIDATION_ERROR
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Request validation failed.
+                  details:
+                    - field: amount
+                      message: amount must be greater than 0
+                    - field: type
+                      message: type must be either 'credit' or 'debit'
+            invalidJson:
+              summary: INVALID_JSON
+              value:
+                error:
+                  code: INVALID_JSON
+                  message: Request body is not valid JSON.
+            invalidAccountId:
+              summary: INVALID_ACCOUNT_ID
+              value:
+                error:
+                  code: INVALID_ACCOUNT_ID
+                  message: "'abc' is not a valid account ID. Expected a UUID."
+
+    InvalidAccountId:
+      description: The path account ID is not a UUID.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: INVALID_ACCOUNT_ID
+              message: "'abc' is not a valid account ID. Expected a UUID."
+
+    AccountNotFound:
+      description: The account does not exist.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: ACCOUNT_NOT_FOUND
+              message: Account '6f1c2a9e-4b7d-4c1e-9a3f-2d8e5b6c7a10' was not found.
+              details:
+                account_id: 6f1c2a9e-4b7d-4c1e-9a3f-2d8e5b6c7a10
+
+    DuplicateTransaction:
+      description: >
+        The reference_id was already used on this account. Nothing was
+        created and no balance changed. `details.existing_transaction` is the
+        original transaction.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: DUPLICATE_TRANSACTION
+              message: A transaction with reference_id 'TXN-1001' already exists for account '6f1c2a9e-4b7d-4c1e-9a3f-2d8e5b6c7a10'.
+              details:
+                existing_transaction:
+                  id: a3b1c9d2-7e4f-4a6b-8c5d-1e2f3a4b5c6d
+                  account_id: 6f1c2a9e-4b7d-4c1e-9a3f-2d8e5b6c7a10
+                  type: credit
+                  amount: 50
+                  description: Salary
+                  reference_id: TXN-1001
+                  created_at: '2026-10-28T10:20:00.000Z'
+
+    InsufficientBalance:
+      description: The debit is larger than the current balance. Nothing changed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: INSUFFICIENT_BALANCE
+              message: Account '6f1c2a9e-4b7d-4c1e-9a3f-2d8e5b6c7a10' has insufficient balance for a debit of 150.
+              details:
+                account_id: 6f1c2a9e-4b7d-4c1e-9a3f-2d8e5b6c7a10
+                balance: 100
+                amount: 150
+
+    UnsupportedMediaType:
+      description: The request body was not sent as application/json.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: UNSUPPORTED_MEDIA_TYPE
+              message: Content-Type must be application/json.

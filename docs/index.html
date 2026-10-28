@@ -1,0 +1,710 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Transaction Ledger API Docs</title>
+<style>
+  :root {
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --surface-2: #f1f5f9;
+    --text: #0f172a;
+    --muted: #64748b;
+    --border: #e2e8f0;
+    --accent: #0f766e;
+    --accent-soft: #ccfbf1;
+    --code-bg: #0f172a;
+    --code-text: #e2e8f0;
+    --get: #2563eb;
+    --get-soft: #dbeafe;
+    --post: #16a34a;
+    --post-soft: #dcfce7;
+    --ok: #16a34a;
+    --warn: #d97706;
+    --err: #dc2626;
+    --j-key: #7dd3fc;
+    --j-str: #86efac;
+    --j-num: #fcd34d;
+    --j-lit: #f9a8d4;
+    --radius: 10px;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b1120;
+      --surface: #111827;
+      --surface-2: #1f2937;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --border: #1f2937;
+      --accent: #2dd4bf;
+      --accent-soft: #134e4a;
+      --code-bg: #020617;
+      --get: #60a5fa;
+      --get-soft: #1e3a8a;
+      --post: #4ade80;
+      --post-soft: #14532d;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  a { color: var(--accent); }
+  code { font-family: var(--mono); font-size: 0.88em; background: var(--surface-2); padding: 1px 6px; border-radius: 5px; }
+  pre code { background: none; padding: 0; font-size: inherit; }
+
+  /* Top bar */
+  .topbar {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding: 12px 24px;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+  }
+  .brand { font-weight: 700; font-size: 17px; }
+  .brand span { color: var(--accent); }
+  .chip {
+    font-family: var(--mono); font-size: 12.5px;
+    padding: 4px 10px; border-radius: 999px;
+    background: var(--surface-2); color: var(--muted);
+  }
+  .status { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+  .dot.up { background: var(--ok); }
+  .dot.down { background: var(--err); }
+  .topbar .spacer { flex: 1; }
+  .topbar a.spec { font-size: 13px; }
+
+  /* Layout */
+  .layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); }
+  .sidebar {
+    position: sticky; top: 57px; align-self: start;
+    height: calc(100vh - 57px); overflow-y: auto;
+    padding: 20px 16px; border-right: 1px solid var(--border);
+  }
+  .sidebar h4 {
+    margin: 18px 8px 6px; font-size: 11.5px; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .sidebar h4:first-child { margin-top: 0; }
+  .sidebar a {
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 8px; border-radius: 6px;
+    color: var(--text); text-decoration: none; font-size: 14px;
+  }
+  .sidebar a:hover { background: var(--surface-2); }
+  .sidebar a.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  main { padding: 32px 48px 96px; max-width: 980px; }
+  section { padding: 8px 0 32px; border-bottom: 1px solid var(--border); margin-bottom: 32px; }
+  section:last-child { border-bottom: 0; }
+  h1 { font-size: 30px; margin: 0 0 8px; }
+  h2 { font-size: 22px; margin: 0 0 12px; }
+  h3 { font-size: 16px; margin: 24px 0 8px; }
+  .lead { font-size: 17px; color: var(--muted); margin-top: 0; }
+
+  /* Method badges */
+  .method {
+    display: inline-block; min-width: 46px; text-align: center;
+    font: 700 11px/1 var(--mono); padding: 5px 7px; border-radius: 5px;
+  }
+  .method.GET { color: var(--get); background: var(--get-soft); }
+  .method.POST { color: var(--post); background: var(--post-soft); }
+  .sidebar .method { min-width: 38px; font-size: 10px; padding: 3px 5px; }
+  .endpoint-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .endpoint-head .path { font: 600 16px var(--mono); word-break: break-all; }
+
+  /* Tables */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 8px 0 16px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+  td code { white-space: nowrap; }
+  .req { color: var(--err); font-size: 12px; font-weight: 600; }
+  .opt { color: var(--muted); font-size: 12px; }
+
+  /* Code blocks */
+  .code {
+    position: relative; margin: 8px 0 16px;
+    background: var(--code-bg); color: var(--code-text);
+    border-radius: var(--radius); overflow: hidden;
+  }
+  .code-label {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 12px; font-size: 12px; color: #94a3b8;
+    border-bottom: 1px solid #1e293b;
+  }
+  .code pre { margin: 0; padding: 14px 16px; overflow-x: auto; font: 13px/1.55 var(--mono); }
+  .copy {
+    border: 0; background: #1e293b; color: #cbd5e1; cursor: pointer;
+    font-size: 11.5px; padding: 3px 9px; border-radius: 5px;
+  }
+  .copy:hover { background: #334155; }
+  .j-key { color: var(--j-key); }
+  .j-str { color: var(--j-str); }
+  .j-num { color: var(--j-num); }
+  .j-lit { color: var(--j-lit); }
+
+  /* Callouts */
+  .note {
+    border-left: 3px solid var(--accent); background: var(--accent-soft);
+    padding: 10px 14px; border-radius: 0 8px 8px 0; margin: 12px 0;
+  }
+  .note p { margin: 0; }
+
+  /* Response list */
+  .status-code { font: 700 13px var(--mono); }
+  .s2 { color: var(--ok); }
+  .s4 { color: var(--warn); }
+  .s5 { color: var(--err); }
+
+  /* Try it */
+  .try {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--surface); margin-top: 16px; overflow: hidden;
+  }
+  .try summary {
+    cursor: pointer; padding: 12px 16px; font-weight: 600;
+    list-style: none; display: flex; align-items: center; gap: 8px;
+  }
+  .try summary::-webkit-details-marker { display: none; }
+  .try summary::before { content: "▸"; color: var(--accent); transition: transform 0.15s; }
+  .try[open] summary::before { transform: rotate(90deg); }
+  .try-body { padding: 0 16px 16px; }
+  .field { display: grid; gap: 4px; margin-bottom: 10px; }
+  .field label { font-size: 13px; color: var(--muted); font-family: var(--mono); }
+  .field input, .field select, .field textarea {
+    width: 100%; padding: 8px 10px; border-radius: 7px;
+    border: 1px solid var(--border); background: var(--bg); color: var(--text);
+    font: 13px var(--mono);
+  }
+  .field textarea { min-height: 140px; resize: vertical; }
+  .actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .send {
+    border: 0; border-radius: 7px; cursor: pointer;
+    background: var(--accent); color: #fff; font-weight: 600; padding: 8px 18px;
+  }
+  @media (prefers-color-scheme: dark) { .send { color: #042f2e; } }
+  .send:disabled { opacity: 0.6; cursor: wait; }
+  .hint { font-size: 12.5px; color: var(--muted); }
+  .result { margin-top: 12px; }
+  .result-meta { font-size: 13px; margin-bottom: 4px; }
+
+  .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 16px 0; }
+  .card { border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; background: var(--surface); }
+  .card strong { display: block; margin-bottom: 4px; }
+  .card p { margin: 0; color: var(--muted); font-size: 14px; }
+  ol.steps { padding-left: 20px; }
+  ol.steps li { margin-bottom: 12px; }
+
+  @media (max-width: 900px) {
+    .layout { display: block; }
+    .sidebar { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+    main { padding: 24px 16px 64px; }
+    .topbar { padding: 12px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">Transaction <span>Ledger</span> API</div>
+  <code class="chip" data-base></code>
+  <div class="status"><span class="dot" id="health-dot"></span><span id="health-text">Checking API…</span></div>
+  <div class="spacer"></div>
+  <a class="spec" href="/documentation/openapi.yaml">OpenAPI spec (YAML)</a>
+</header>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar">
+    <h4>Guides</h4>
+    <a href="#overview">Overview</a>
+    <a href="#quickstart">Quickstart</a>
+    <a href="#conventions">Requests &amp; responses</a>
+    <h4>Endpoints</h4>
+    <div id="nav-endpoints"></div>
+    <h4>Concepts</h4>
+    <a href="#idempotency">Idempotency</a>
+    <a href="#atomicity">Atomicity &amp; consistency</a>
+    <a href="#pagination">Pagination</a>
+    <h4>Reference</h4>
+    <a href="#errors">Errors</a>
+    <a href="#validation">Validation rules</a>
+  </nav>
+
+  <main>
+    <section id="overview">
+      <h1>Transaction Ledger API</h1>
+      <p class="lead">A REST API that keeps a balance for each account and an append-only record of every credit and debit that produced it.</p>
+      <div class="grid-2">
+        <div class="card"><strong>No overdrafts</strong><p>A debit larger than the balance is rejected and nothing changes.</p></div>
+        <div class="card"><strong>Safe retries</strong><p>Each <code>reference_id</code> is unique per account, so a request is never applied twice.</p></div>
+        <div class="card"><strong>All or nothing</strong><p>A transaction and its balance update are saved together or not at all.</p></div>
+        <div class="card"><strong>Immutable history</strong><p>Transactions can't be edited or deleted, through the API or in the database.</p></div>
+      </div>
+      <p>Base URL: <code data-base></code></p>
+    </section>
+
+    <section id="quickstart">
+      <h2>Quickstart</h2>
+      <p>Every endpoint below has a <strong>Try it</strong> panel that calls this API directly. Follow these steps in order:</p>
+      <ol class="steps">
+        <li><a href="#create-account">Create an account</a> named Alice, then another named Bob. Their IDs are filled into the other panels for you.</li>
+        <li><a href="#add-transaction">Add a credit</a> of 100 to Alice's account.</li>
+        <li><a href="#transfer">Transfer</a> 30 from Alice to Bob.</li>
+        <li><a href="#list-transactions">Read Alice's history</a> and <a href="#get-balance">check her balance</a>. It should be 70.</li>
+        <li>Send the credit from step 2 again. You get <code>409 DUPLICATE_TRANSACTION</code> and the balance stays the same.</li>
+      </ol>
+      <p>Or from a terminal:</p>
+      <div class="code" data-copy>
+        <div class="code-label"><span>bash</span><button class="copy">Copy</button></div>
+        <pre id="quickstart-curl"></pre>
+      </div>
+    </section>
+
+    <section id="conventions">
+      <h2>Requests &amp; responses</h2>
+      <ul>
+        <li>Request bodies must be JSON, sent with <code>Content-Type: application/json</code>.</li>
+        <li>Successful responses wrap their payload in <code>data</code>. List responses add a <code>pagination</code> object.</li>
+        <li>Errors always use the same <code>error</code> object. See <a href="#errors">Errors</a>.</li>
+        <li>IDs are UUIDs generated by the server. Timestamps are UTC, in ISO 8601 format.</li>
+        <li>Amounts are numbers with at most 2 decimal places. They're stored as exact decimals, so <code>0.1 + 0.2</code> is exactly <code>0.3</code>.</li>
+        <li>There is no authentication.</li>
+      </ul>
+    </section>
+
+    <div id="endpoints"></div>
+
+    <section id="idempotency">
+      <h2>Idempotency</h2>
+      <p>Every transaction carries a <code>reference_id</code> chosen by the client. Within one account, a <code>reference_id</code> can only be used once. If a request reuses one:</p>
+      <ul>
+        <li>No new transaction is created and the balance doesn't change.</li>
+        <li>The API returns <code>409 DUPLICATE_TRANSACTION</code>, with the original transaction in <code>details.existing_transaction</code>.</li>
+      </ul>
+      <p>A client that times out can simply resend the same request. Either the first attempt succeeded and the retry returns <code>409</code>, or it didn't and the retry applies it once.</p>
+      <ul>
+        <li>The same <code>reference_id</code> on <strong>different</strong> accounts is allowed.</li>
+        <li>The duplicate check runs before the balance check, so retrying a debit that already succeeded returns <code>409</code>, not <code>422</code>.</li>
+        <li>A transfer uses its <code>reference_id</code> for both legs. If either account has already used it, the whole transfer is rejected.</li>
+      </ul>
+    </section>
+
+    <section id="atomicity">
+      <h2>Atomicity &amp; consistency</h2>
+      <p>Recording a transaction and updating the balance happen inside one PostgreSQL transaction:</p>
+      <ol>
+        <li>Lock the account row (<code>SELECT … FOR UPDATE</code>).</li>
+        <li>Reject the request if the <code>reference_id</code> was already used.</li>
+        <li>Update the balance, only if it stays at 0 or above.</li>
+        <li>Insert the transaction row.</li>
+        <li>Commit, or roll back everything if any step failed.</li>
+      </ol>
+      <p>The row lock makes concurrent requests for one account run one after another. Ten parallel debits of 20 against a balance of 100 always give exactly five successes and a final balance of 0.</p>
+      <p>A <strong>transfer</strong> runs both legs in the same database transaction. If the credit fails, the debit is rolled back too, so a partial transfer can't happen. Both accounts are locked in a fixed order, so opposite-direction transfers can't deadlock.</p>
+      <h3>Database safeguards</h3>
+      <div class="table-wrap"><table>
+        <tr><th>Rule</th><th>Enforced by</th></tr>
+        <tr><td>Balance never negative</td><td><code>CHECK (balance &gt;= 0)</code></td></tr>
+        <tr><td>Amount above zero</td><td><code>CHECK (amount &gt; 0)</code></td></tr>
+        <tr><td>Type is credit or debit</td><td><code>CHECK (type IN ('credit','debit'))</code></td></tr>
+        <tr><td><code>reference_id</code> unique per account</td><td><code>UNIQUE (account_id, reference_id)</code></td></tr>
+        <tr><td>Transaction belongs to an account</td><td>Foreign key to <code>accounts</code></td></tr>
+        <tr><td>Transactions never change</td><td>Trigger blocking <code>UPDATE</code> and <code>DELETE</code></td></tr>
+      </table></div>
+    </section>
+
+    <section id="pagination">
+      <h2>Pagination</h2>
+      <p>The history endpoint returns transactions <strong>newest first</strong> by <code>created_at</code>, and takes <code>type</code>, <code>page</code> and <code>limit</code> query parameters.</p>
+      <ul>
+        <li><code>total_records</code> counts all matching transactions after the <code>type</code> filter.</li>
+        <li><code>total_pages</code> is <code>0</code> when there are none.</li>
+        <li>A <code>page</code> past the last one returns an empty <code>data</code> array with status <code>200</code>.</li>
+      </ul>
+      <div class="code" data-copy>
+        <div class="code-label"><span>pagination</span><button class="copy">Copy</button></div>
+        <pre data-json='{"page":2,"limit":2,"total_records":5,"total_pages":3}'></pre>
+      </div>
+    </section>
+
+    <section id="errors">
+      <h2>Errors</h2>
+      <p>Every error has the same shape. <code>code</code> is stable and meant for programs; <code>message</code> is meant for people; <code>details</code> is optional and depends on the code.</p>
+      <div class="code" data-copy>
+        <div class="code-label"><span>error</span><button class="copy">Copy</button></div>
+        <pre data-json='{"error":{"code":"VALIDATION_ERROR","message":"Request validation failed.","details":[{"field":"amount","message":"amount must be greater than 0"}]}}'></pre>
+      </div>
+      <div class="table-wrap"><table>
+        <tr><th>Status</th><th>Code</th><th>When</th></tr>
+        <tr><td class="status-code s4">400</td><td><code>VALIDATION_ERROR</code></td><td>A field is missing, has the wrong type or breaks a rule. <code>details</code> lists every problem.</td></tr>
+        <tr><td class="status-code s4">400</td><td><code>INVALID_JSON</code></td><td>The body isn't valid JSON.</td></tr>
+        <tr><td class="status-code s4">400</td><td><code>INVALID_ACCOUNT_ID</code></td><td>The account ID in the URL isn't a UUID.</td></tr>
+        <tr><td class="status-code s4">404</td><td><code>ACCOUNT_NOT_FOUND</code></td><td>The account doesn't exist. <code>details.account_id</code> says which.</td></tr>
+        <tr><td class="status-code s4">404</td><td><code>ROUTE_NOT_FOUND</code></td><td>The endpoint doesn't exist.</td></tr>
+        <tr><td class="status-code s4">409</td><td><code>DUPLICATE_TRANSACTION</code></td><td>The <code>reference_id</code> was already used on this account.</td></tr>
+        <tr><td class="status-code s4">413</td><td><code>PAYLOAD_TOO_LARGE</code></td><td>The body is larger than 100 KB.</td></tr>
+        <tr><td class="status-code s4">415</td><td><code>UNSUPPORTED_MEDIA_TYPE</code></td><td>The body wasn't sent as <code>application/json</code>.</td></tr>
+        <tr><td class="status-code s4">422</td><td><code>INSUFFICIENT_BALANCE</code></td><td>A debit or transfer is larger than the balance.</td></tr>
+        <tr><td class="status-code s4">422</td><td><code>AMOUNT_OUT_OF_RANGE</code></td><td>The resulting balance would exceed what can be stored.</td></tr>
+        <tr><td class="status-code s5">500</td><td><code>INTERNAL_ERROR</code></td><td>Something unexpected went wrong. No internals are exposed.</td></tr>
+      </table></div>
+      <p>A failed request never changes a balance or creates a transaction.</p>
+    </section>
+
+    <section id="validation">
+      <h2>Validation rules</h2>
+      <div class="table-wrap"><table>
+        <tr><th>Field</th><th>Rules</th></tr>
+        <tr><td><code>name</code></td><td>Required string, 1 to 255 characters after trimming</td></tr>
+        <tr><td><code>type</code></td><td>Required, <code>credit</code> or <code>debit</code></td></tr>
+        <tr><td><code>amount</code></td><td>Required number, greater than 0, at most 1,000,000,000, at most 2 decimal places</td></tr>
+        <tr><td><code>reference_id</code></td><td>Required string, 1 to 255 characters after trimming</td></tr>
+        <tr><td><code>description</code></td><td>Optional string, up to 500 characters</td></tr>
+        <tr><td><code>page</code> / <code>limit</code></td><td>Integers; <code>page</code> ≥ 1, <code>limit</code> 1 to 100</td></tr>
+        <tr><td>Unknown fields</td><td>Rejected, for example <code>balance</code> when creating an account</td></tr>
+      </table></div>
+    </section>
+  </main>
+</div>
+
+<script>
+(() => {
+  const BASE = `${location.origin}/api`;
+  const SAMPLE_ID = '6f1c2a9e-4b7d-4c1e-9a3f-2d8e5b6c7a10';
+  const SAMPLE_ID_2 = '9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d';
+
+  const sampleTransaction = (overrides = {}) => ({
+    id: 'a3b1c9d2-7e4f-4a6b-8c5d-1e2f3a4b5c6d',
+    account_id: SAMPLE_ID,
+    type: 'credit',
+    amount: 100,
+    description: 'Deposit',
+    reference_id: 'TXN-1001',
+    created_at: '2026-10-28T10:20:00.000Z',
+    ...overrides,
+  });
+
+  const ERR = {
+    VALIDATION_ERROR: [400, 'A body or query field is invalid. `details` lists each problem.'],
+    INVALID_JSON: [400, 'The body is not valid JSON.'],
+    INVALID_ACCOUNT_ID: [400, 'The account ID in the URL is not a UUID.'],
+    ACCOUNT_NOT_FOUND: [404, 'The account does not exist.'],
+    DUPLICATE_TRANSACTION: [409, 'The reference_id was already used on this account. Nothing changed.'],
+    UNSUPPORTED_MEDIA_TYPE: [415, 'The body was not sent as application/json.'],
+    INSUFFICIENT_BALANCE: [422, 'The amount is larger than the balance. Nothing changed.'],
+  };
+
+  const ENDPOINTS = [
+    {
+      id: 'create-account',
+      method: 'POST',
+      path: '/accounts',
+      title: 'Create account',
+      description: 'Creates an account. The <code>id</code>, <code>created_at</code> and a starting <code>balance</code> of 0 are set by the system. Sending <code>balance</code> or any other unknown field returns a validation error.',
+      body: [
+        ['name', 'string', true, 'Account holder name, 1 to 255 characters. Leading and trailing spaces are trimmed.'],
+      ],
+      exampleBody: { name: 'Alice' },
+      success: [201, { data: { id: SAMPLE_ID, name: 'Alice', balance: 0, created_at: '2026-10-28T10:15:30.000Z' } }],
+      errors: ['VALIDATION_ERROR', 'INVALID_JSON', 'UNSUPPORTED_MEDIA_TYPE'],
+    },
+    {
+      id: 'get-balance',
+      method: 'GET',
+      path: '/accounts/{accountId}/balance',
+      title: 'Get account balance',
+      description: 'Returns the current balance of an account.',
+      params: [['accountId', 'uuid', true, 'The account ID.']],
+      success: [200, { data: { account_id: SAMPLE_ID, balance: 70 } }],
+      errors: ['INVALID_ACCOUNT_ID', 'ACCOUNT_NOT_FOUND'],
+    },
+    {
+      id: 'add-transaction',
+      method: 'POST',
+      path: '/accounts/{accountId}/transactions',
+      title: 'Add transaction',
+      description: 'Records a credit or debit and updates the balance in one atomic operation. A credit adds the amount; a debit subtracts it and is rejected if the balance is too low.',
+      note: 'Each <code>reference_id</code> can be used once per account. Change it in the body to post another transaction; reusing it returns <code>409</code>.',
+      params: [['accountId', 'uuid', true, 'The account ID.']],
+      body: [
+        ['type', 'string', true, '<code>credit</code> or <code>debit</code>.'],
+        ['amount', 'number', true, 'Greater than 0, at most 1,000,000,000, at most 2 decimal places.'],
+        ['reference_id', 'string', true, 'Unique per account. 1 to 255 characters.'],
+        ['description', 'string', false, 'Up to 500 characters.'],
+      ],
+      exampleBody: { type: 'credit', amount: 100, description: 'Deposit', reference_id: 'TXN-1001' },
+      success: [201, { data: { transaction: sampleTransaction(), balance: 100 } }],
+      errors: ['VALIDATION_ERROR', 'INVALID_JSON', 'INVALID_ACCOUNT_ID', 'ACCOUNT_NOT_FOUND', 'DUPLICATE_TRANSACTION', 'UNSUPPORTED_MEDIA_TYPE', 'INSUFFICIENT_BALANCE'],
+    },
+    {
+      id: 'list-transactions',
+      method: 'GET',
+      path: '/accounts/{accountId}/transactions',
+      title: 'Get transaction history',
+      description: 'Returns an account\'s transactions, newest first, with optional filtering by type and pagination. See <a href="#pagination">Pagination</a>.',
+      params: [['accountId', 'uuid', true, 'The account ID.']],
+      query: [
+        ['type', 'string', false, '<code>credit</code> or <code>debit</code>. Leave it out to get both.', ''],
+        ['page', 'integer', false, 'Page number, starting at 1. Default <code>1</code>.', '1'],
+        ['limit', 'integer', false, 'Page size, 1 to 100. Default <code>10</code>.', '10'],
+      ],
+      success: [200, {
+        data: [sampleTransaction({ type: 'debit', amount: 30, description: 'Transfer to ' + SAMPLE_ID_2, reference_id: 'TRF-2001', id: 'c7d8e9f0-1a2b-4c3d-8e4f-5a6b7c8d9e0f', created_at: '2026-10-28T11:00:00.000Z' }), sampleTransaction()],
+        pagination: { page: 1, limit: 10, total_records: 2, total_pages: 1 },
+      }],
+      errors: ['VALIDATION_ERROR', 'INVALID_ACCOUNT_ID', 'ACCOUNT_NOT_FOUND'],
+    },
+    {
+      id: 'transfer',
+      method: 'POST',
+      path: '/transfers',
+      title: 'Transfer money',
+      description: 'Debits the source account and credits the destination in one database transaction, so a partial transfer is impossible. Both legs share the <code>reference_id</code>.',
+      body: [
+        ['from_account_id', 'uuid', true, 'Source account. Must have enough balance.'],
+        ['to_account_id', 'uuid', true, 'Destination account. Must differ from the source.'],
+        ['amount', 'number', true, 'Greater than 0, at most 1,000,000,000, at most 2 decimal places.'],
+        ['reference_id', 'string', true, 'Used for both legs. Must be unused on both accounts.'],
+        ['description', 'string', false, 'Used for both legs. Defaults to "Transfer to &lt;id&gt;" / "Transfer from &lt;id&gt;".'],
+      ],
+      exampleBody: { from_account_id: SAMPLE_ID, to_account_id: SAMPLE_ID_2, amount: 30, reference_id: 'TRF-2001' },
+      success: [201, {
+        data: {
+          debit: sampleTransaction({ type: 'debit', amount: 30, description: 'Transfer to ' + SAMPLE_ID_2, reference_id: 'TRF-2001' }),
+          credit: sampleTransaction({ id: '2e3f4a5b-6c7d-4e8f-9a0b-1c2d3e4f5a6b', account_id: SAMPLE_ID_2, amount: 30, description: 'Transfer from ' + SAMPLE_ID, reference_id: 'TRF-2001' }),
+          balances: { from_account: 70, to_account: 80 },
+        },
+      }],
+      errors: ['VALIDATION_ERROR', 'INVALID_JSON', 'ACCOUNT_NOT_FOUND', 'DUPLICATE_TRANSACTION', 'UNSUPPORTED_MEDIA_TYPE', 'INSUFFICIENT_BALANCE'],
+    },
+    {
+      id: 'health',
+      method: 'GET',
+      path: '/health',
+      title: 'Health check',
+      description: 'Returns <code>ok</code> when the API is running and can reach the database.',
+      success: [200, { data: { status: 'ok' } }],
+      errors: [],
+    },
+  ];
+
+  // ---------- helpers ----------
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  function highlightJson(value) {
+    const json = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+    return esc(json).replace(
+      /(&quot;(?:\\.|[^&]|&(?!quot;))*?&quot;)(\s*:)?|\b(true|false|null)\b|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g,
+      (m, str, colon, lit, num) => {
+        if (str) return colon ? `<span class="j-key">${str}</span>${colon}` : `<span class="j-str">${str}</span>`;
+        if (lit) return `<span class="j-lit">${lit}</span>`;
+        return `<span class="j-num">${num}</span>`;
+      },
+    );
+  }
+
+  const statusClass = (s) => (s < 300 ? 's2' : s < 500 ? 's4' : 's5');
+
+  const codeBlock = (label, html) => `
+    <div class="code" data-copy>
+      <div class="code-label"><span>${esc(label)}</span><button class="copy">Copy</button></div>
+      <pre>${html}</pre>
+    </div>`;
+
+  const fieldTable = (title, rows) => !rows || !rows.length ? '' : `
+    <h3>${title}</h3>
+    <div class="table-wrap"><table>
+      <tr><th>Name</th><th>Type</th><th>Description</th></tr>
+      ${rows.map(([name, type, required, desc]) => `
+        <tr>
+          <td><code>${esc(name)}</code> ${required ? '<span class="req">required</span>' : '<span class="opt">optional</span>'}</td>
+          <td>${esc(type)}</td>
+          <td>${desc}</td>
+        </tr>`).join('')}
+    </table></div>`;
+
+  function curlFor(ep, body = ep.exampleBody) {
+    const path = ep.path.replace('{accountId}', SAMPLE_ID);
+    const query = ep.id === 'list-transactions' ? '?type=debit&page=1&limit=10' : '';
+    const url = `${BASE}${path}${query}`;
+    if (ep.method === 'GET') return `curl "${url}"`;
+    return `curl -X ${ep.method} ${url} \\\n  -H "Content-Type: application/json" \\\n  -d '${JSON.stringify(body)}'`;
+  }
+
+  // ---------- render endpoints ----------
+  const endpointsEl = document.getElementById('endpoints');
+  const navEl = document.getElementById('nav-endpoints');
+
+  for (const ep of ENDPOINTS) {
+    navEl.insertAdjacentHTML('beforeend',
+      `<a href="#${ep.id}"><span class="method ${ep.method}">${ep.method}</span>${esc(ep.title)}</a>`);
+
+    const errorsRows = ep.errors.map((code) => `
+      <tr><td class="status-code ${statusClass(ERR[code][0])}">${ERR[code][0]}</td><td><code>${code}</code></td><td>${esc(ERR[code][1]).replace(/`([^`]+)`/g, '<code>$1</code>')}</td></tr>`).join('');
+
+    const tryFields = [
+      ...(ep.params || []).map(([name]) => `
+        <div class="field"><label>${name} (path)</label><input data-param="${name}" placeholder="Create an account first, or paste an ID"></div>`),
+      ...(ep.query || []).map(([name, , , , def]) => name === 'type'
+        ? `<div class="field"><label>type (query)</label><select data-query="type"><option value="">both</option><option>credit</option><option>debit</option></select></div>`
+        : `<div class="field"><label>${name} (query)</label><input data-query="${name}" value="${def}"></div>`),
+      ep.exampleBody ? `<div class="field"><label>body (JSON)</label><textarea data-body spellcheck="false">${esc(JSON.stringify(ep.exampleBody, null, 2))}</textarea></div>` : '',
+    ].join('');
+
+    endpointsEl.insertAdjacentHTML('beforeend', `
+      <section id="${ep.id}" data-endpoint="${ep.id}">
+        <h2>${esc(ep.title)}</h2>
+        <div class="endpoint-head"><span class="method ${ep.method}">${ep.method}</span><span class="path">/api${esc(ep.path)}</span></div>
+        <p>${ep.description}</p>
+        ${ep.note ? `<div class="note"><p>${ep.note}</p></div>` : ''}
+        ${fieldTable('Path parameters', ep.params)}
+        ${fieldTable('Query parameters', ep.query)}
+        ${fieldTable('Request body', ep.body)}
+        <h3>Example request</h3>
+        ${codeBlock('bash', esc(curlFor(ep)))}
+        <h3>Response <span class="status-code s2">${ep.success[0]}</span></h3>
+        ${codeBlock('json', highlightJson(ep.success[1]))}
+        ${errorsRows ? `<h3>Errors</h3><div class="table-wrap"><table><tr><th>Status</th><th>Code</th><th>When</th></tr>${errorsRows}</table></div>` : ''}
+        <details class="try">
+          <summary>Try it</summary>
+          <div class="try-body">
+            ${tryFields}
+            <div class="actions">
+              <button class="send">Send request</button>
+              <span class="hint">${ep.method} /api${esc(ep.path)}</span>
+            </div>
+            <div class="result"></div>
+          </div>
+        </details>
+      </section>`);
+  }
+
+  // Static JSON blocks
+  document.querySelectorAll('pre[data-json]').forEach((pre) => {
+    pre.innerHTML = highlightJson(JSON.parse(pre.dataset.json));
+  });
+  document.querySelectorAll('[data-base]').forEach((el) => { el.textContent = BASE; });
+
+  document.getElementById('quickstart-curl').textContent = [
+    `# Create an account (copy the "id" from the response)`,
+    `curl -X POST ${BASE}/accounts -H "Content-Type: application/json" -d '{"name":"Alice"}'`,
+    ``,
+    `# Credit 100`,
+    `curl -X POST ${BASE}/accounts/<id>/transactions -H "Content-Type: application/json" \\`,
+    `  -d '{"type":"credit","amount":100,"reference_id":"TXN-1001","description":"Deposit"}'`,
+    ``,
+    `# Check the balance`,
+    `curl ${BASE}/accounts/<id>/balance`,
+  ].join('\n');
+
+  // ---------- copy buttons ----------
+  document.addEventListener('click', async (event) => {
+    const button = event.target.closest('.copy');
+    if (!button) return;
+    const text = button.closest('.code').querySelector('pre').textContent;
+    try {
+      await navigator.clipboard.writeText(text);
+      button.textContent = 'Copied';
+    } catch {
+      button.textContent = 'Press Ctrl+C';
+    }
+    setTimeout(() => { button.textContent = 'Copy'; }, 1500);
+  });
+
+  // ---------- try it ----------
+  // Accounts created from this page, newest last. Used to prefill other panels.
+  const createdAccounts = [];
+
+  function prefillAccountIds() {
+    if (createdAccounts.length === 0) return;
+    document.querySelectorAll('input[data-param="accountId"]').forEach((input) => {
+      if (!input.dataset.touched) input.value = createdAccounts[0];
+    });
+    const transferBody = document.querySelector('[data-endpoint="transfer"] textarea[data-body]');
+    if (transferBody && !transferBody.dataset.touched && createdAccounts.length >= 2) {
+      const body = JSON.parse(transferBody.value);
+      body.from_account_id = createdAccounts[0];
+      body.to_account_id = createdAccounts[1];
+      transferBody.value = JSON.stringify(body, null, 2);
+    }
+  }
+
+  document.addEventListener('input', (event) => {
+    if (event.target.matches('input[data-param], textarea[data-body]')) event.target.dataset.touched = '1';
+  });
+
+  endpointsEl.addEventListener('click', async (event) => {
+    const button = event.target.closest('.send');
+    if (!button) return;
+    const section = button.closest('section');
+    const ep = ENDPOINTS.find((e) => e.id === section.dataset.endpoint);
+    const result = section.querySelector('.result');
+
+    let path = ep.path;
+    for (const input of section.querySelectorAll('[data-param]')) {
+      path = path.replace(`{${input.dataset.param}}`, encodeURIComponent(input.value.trim()));
+    }
+    const query = new URLSearchParams();
+    for (const input of section.querySelectorAll('[data-query]')) {
+      if (input.value.trim() !== '') query.set(input.dataset.query, input.value.trim());
+    }
+    const url = `${BASE}${path}${query.toString() ? `?${query}` : ''}`;
+
+    const options = { method: ep.method, headers: {} };
+    const bodyInput = section.querySelector('[data-body]');
+    if (bodyInput) {
+      options.headers['Content-Type'] = 'application/json';
+      options.body = bodyInput.value;
+    }
+
+    button.disabled = true;
+    const started = performance.now();
+    try {
+      const res = await fetch(url, options);
+      const elapsed = Math.round(performance.now() - started);
+      const text = await res.text();
+      let payload = text;
+      try { payload = JSON.parse(text); } catch { /* not JSON */ }
+
+      result.innerHTML = `
+        <div class="result-meta"><span class="status-code ${statusClass(res.status)}">${res.status} ${esc(res.statusText)}</span>
+        <span class="hint"> · ${elapsed} ms · ${esc(ep.method)} ${esc(url)}</span></div>
+        ${codeBlock('response', typeof payload === 'string' ? esc(payload) : highlightJson(payload))}`;
+
+      if (ep.id === 'create-account' && res.status === 201) {
+        createdAccounts.push(payload.data.id);
+        prefillAccountIds();
+      }
+    } catch (err) {
+      result.innerHTML = `<div class="result-meta"><span class="status-code s5">Request failed</span> <span class="hint">${esc(err.message)}</span></div>`;
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  // ---------- health ----------
+  const dot = document.getElementById('health-dot');
+  const healthText = document.getElementById('health-text');
+  fetch(`${BASE}/health`)
+    .then((res) => { if (!res.ok) throw new Error(); dot.className = 'dot up'; healthText.textContent = 'API online'; })
+    .catch(() => { dot.className = 'dot down'; healthText.textContent = 'API unreachable'; });
+
+  // ---------- active nav link ----------
+  const links = [...document.querySelectorAll('.sidebar a')];
+  const observer = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      links.forEach((a) => a.classList.toggle('active', a.getAttribute('href') === `#${entry.target.id}`));
+    }
+  }, { rootMargin: '-80px 0px -70% 0px' });
+  document.querySelectorAll('main section[id]').forEach((s) => observer.observe(s));
+})();
+</script>
+</body>
+</html>
